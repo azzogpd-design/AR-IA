@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>AR AI Room Designer - Détection du Sol</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: sans-serif; }
+
+    model-viewer {
+      width: 100%;
+      height: 100%;
+      --poster-color: transparent;
+    }
+
+    #status-badge {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      z-index: 10;
+      background: rgba(15, 23, 42, 0.85);
+      color: #38bdf8;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    /* Bouton d'ancrage au sol WebXR */
+    .ar-button {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      z-index: 10;
+      background: #10b981;
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 25px;
+      font-weight: bold;
+      font-size: 13px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    .controls-container {
+      position: absolute;
+      bottom: 25px;
+      left: 5%;
+      width: 90%;
+      z-index: 10;
+      display: flex;
+      gap: 10px;
+      background: rgba(15, 23, 42, 0.9);
+      padding: 8px 15px;
+      border-radius: 35px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .prompt-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #fff;
+      font-size: 15px;
+    }
+
+    .btn-send {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 25px;
+      font-weight: bold;
+    }
+  </style>
+
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+</head>
+<body>
+
+  <div id="status-badge">Mode Réalité Augmentée...</div>
+
+  <!-- Le tag 'ar' et 'ar-modes' active la détection du sol via ARCore / WebXR -->
+  <model-viewer 
+    id="ar-viewer"
+    src="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb"
+    alt="Meuble 3D IA"
+    ar
+    ar-modes="webxr scene-viewer quick-look"
+    ar-scale="auto"
+    camera-controls
+    touch-action="pan-y"
+    shadow-intensity="1.5">
+    
+    <button slot="ar-button" class="ar-button">
+      📍 Ancrer sur le sol
+    </button>
+  </model-viewer>
+
+  <div class="controls-container">
+    <input type="text" id="ai-prompt" class="prompt-input" placeholder="ex: fauteuil rouge, table, canape...">
+    <button class="btn-send" onclick="processAIPrompt()">Générer</button>
+  </div>
+
+  <script>
+    const viewer = document.getElementById('ar-viewer');
+    const status = document.getElementById('status-badge');
+
+    viewer.addEventListener('ar-status', (event) => {
+      if (event.detail.status === 'session-started') {
+        status.innerText = "Pointez le téléphone vers le sol pour scanner";
+      } else if (event.detail.status === 'object-placed') {
+        status.innerText = "Objet ancré sur le sol !";
+      }
+    });
+
+    const modelCatalog = {
+      'fauteuil': 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
+      'table': 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Table/glTF-Binary/Table.glb',
+      'canape': 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/GlamVelvetSofa/glTF-Binary/GlamVelvetSofa.glb'
+    };
+
+    const colorMap = {
+      'rouge': [0.9, 0.1, 0.1, 1.0],
+      'vert': [0.1, 0.8, 0.2, 1.0],
+      'bleu': [0.1, 0.4, 0.9, 1.0],
+      'jaune': [0.9, 0.8, 0.1, 1.0],
+      'noir': [0.05, 0.05, 0.05, 1.0],
+      'blanc': [0.95, 0.95, 0.95, 1.0]
+    };
+
+    function processAIPrompt() {
+      const prompt = document.getElementById('ai-prompt').value.toLowerCase();
+      if (!prompt.trim()) return;
+
+      for (const [keyword, url] of Object.entries(modelCatalog)) {
+        if (prompt.includes(keyword)) {
+          viewer.src = url;
+          break;
+        }
+      }
+
+      let targetColor = null;
+      for (const [colorName, rgba] of Object.entries(colorMap)) {
+        if (prompt.includes(colorName)) {
+          targetColor = rgba;
+          break;
+        }
+      }
+
+      setTimeout(() => {
+        if (targetColor && viewer.model && viewer.model.materials) {
+          for (const mat of viewer.model.materials) {
+            mat.pbrMetallicRoughness.setBaseColorFactor(targetColor);
+          }
+        }
+      }, 500);
+    }
+  </script>
+</body>
+</html>
