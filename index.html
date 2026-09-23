@@ -3,46 +3,82 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>AR AI Room Designer - Détection du Sol</title>
+  <title>AR Studio IA - Version Pro</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body, html { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: sans-serif; }
-
-    model-viewer {
-      width: 100%;
-      height: 100%;
-      --poster-color: transparent;
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Roboto, sans-serif;
     }
 
-    #status-badge {
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #000;
+    }
+
+    /* Flux Caméra en arrière-plan */
+    #camera-feed {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 1;
+    }
+
+    /* Modèle 3D superposé */
+    model-viewer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+      --poster-color: transparent;
+      background-color: transparent;
+    }
+
+    /* En-tête / Badge de statut */
+    #header-container {
       position: absolute;
       top: 20px;
-      left: 20px;
+      left: 15px;
+      right: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       z-index: 10;
+    }
+
+    .badge {
       background: rgba(15, 23, 42, 0.85);
       color: #38bdf8;
-      padding: 8px 16px;
+      padding: 8px 14px;
       border-radius: 20px;
-      font-size: 13px;
+      font-size: 12px;
+      font-weight: 600;
       border: 1px solid rgba(56, 189, 248, 0.3);
+      backdrop-filter: blur(8px);
     }
 
     /* Bouton d'ancrage au sol WebXR */
     .ar-button {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      z-index: 10;
       background: #10b981;
       color: white;
       border: none;
-      padding: 10px 18px;
-      border-radius: 25px;
+      padding: 8px 16px;
+      border-radius: 20px;
       font-weight: bold;
-      font-size: 13px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      font-size: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      cursor: pointer;
     }
 
+    /* Panneau de contrôle IA (Bas) */
     .controls-container {
       position: absolute;
       bottom: 25px;
@@ -50,11 +86,14 @@
       width: 90%;
       z-index: 10;
       display: flex;
-      gap: 10px;
+      align-items: center;
+      gap: 8px;
       background: rgba(15, 23, 42, 0.9);
-      padding: 8px 15px;
+      padding: 6px 6px 6px 15px;
       border-radius: 35px;
       border: 1px solid rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
     }
 
     .prompt-input {
@@ -63,101 +102,226 @@
       border: none;
       outline: none;
       color: #fff;
-      font-size: 15px;
+      font-size: 14px;
     }
 
+    .prompt-input::placeholder {
+      color: #94a3b8;
+    }
+
+    /* Bouton Micro (Vocal) */
+    .btn-mic {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .btn-mic.listening {
+      background: #ef4444;
+      animation: pulse 1.2s infinite;
+    }
+
+    /* Bouton Envoyer */
     .btn-send {
       background: #2563eb;
       color: white;
       border: none;
-      padding: 10px 20px;
+      padding: 10px 18px;
       border-radius: 25px;
       font-weight: bold;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
     }
   </style>
 
+  <!-- Bibliothèque Google 3D & AR -->
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
 </head>
 <body>
 
-  <div id="status-badge">Mode Réalité Augmentée...</div>
+  <!-- Flux Caméra en Direct -->
+  <video id="camera-feed" autoplay playsinline muted></video>
 
-  <!-- Le tag 'ar' et 'ar-modes' active la détection du sol via ARCore / WebXR -->
+  <!-- Badge d'état et Bouton AR -->
+  <div id="header-container">
+    <div id="status-badge" class="badge">🤖 Démarrage de l'IA...</div>
+  </div>
+
+  <!-- Visionneur 3D Photoréaliste -->
   <model-viewer 
     id="ar-viewer"
     src="https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb"
     alt="Meuble 3D IA"
     ar
-    ar-modes="webxr scene-viewer quick-look"
+    ar-modes="scene-viewer webxr quick-look"
     ar-scale="auto"
     camera-controls
     touch-action="pan-y"
-    shadow-intensity="1.5">
+    shadow-intensity="1.5"
+    exposure="1">
     
     <button slot="ar-button" class="ar-button">
-      📍 Ancrer sur le sol
+      📍 Sol AR Natif
     </button>
   </model-viewer>
 
+  <!-- Barre de Commande Vocale et Textuelle -->
   <div class="controls-container">
-    <input type="text" id="ai-prompt" class="prompt-input" placeholder="ex: fauteuil rouge, table, canape...">
+    <button id="btn-mic" class="btn-mic" onclick="toggleVoiceRecognition()" title="Parler à l'IA">🎤</button>
+    <input type="text" id="ai-prompt" class="prompt-input" placeholder="Parlez ou tapez : 'fauteuil bleu', 'table'...">
     <button class="btn-send" onclick="processAIPrompt()">Générer</button>
   </div>
 
   <script>
     const viewer = document.getElementById('ar-viewer');
     const status = document.getElementById('status-badge');
+    const promptInput = document.getElementById('ai-prompt');
+    const micBtn = document.getElementById('btn-mic');
+    let recognition = null;
+    let isListening = false;
 
-    viewer.addEventListener('ar-status', (event) => {
-      if (event.detail.status === 'session-started') {
-        status.innerText = "Pointez le téléphone vers le sol pour scanner";
-      } else if (event.detail.status === 'object-placed') {
-        status.innerText = "Objet ancré sur le sol !";
+    // 1. Initialisation de la Caméra
+    async function initCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } }
+        });
+        document.getElementById('camera-feed').srcObject = stream;
+        status.innerText = "📷 Caméra active - Pièce prête";
+      } catch (err) {
+        status.innerText = "⚠️ Caméra bloquée (Autorisez dans Chrome)";
       }
-    });
+    }
 
+    // 2. Catalogue de Modèles 3D Photoréalistes
     const modelCatalog = {
       'fauteuil': 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
+      'chaise': 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
       'table': 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Table/glTF-Binary/Table.glb',
-      'canape': 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/GlamVelvetSofa/glTF-Binary/GlamVelvetSofa.glb'
+      'canape': 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/GlamVelvetSofa/glTF-Binary/GlamVelvetSofa.glb',
+      'sofa': 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/GlamVelvetSofa/glTF-Binary/GlamVelvetSofa.glb'
     };
 
+    // 3. Couleurs supportées
     const colorMap = {
       'rouge': [0.9, 0.1, 0.1, 1.0],
       'vert': [0.1, 0.8, 0.2, 1.0],
       'bleu': [0.1, 0.4, 0.9, 1.0],
       'jaune': [0.9, 0.8, 0.1, 1.0],
       'noir': [0.05, 0.05, 0.05, 1.0],
-      'blanc': [0.95, 0.95, 0.95, 1.0]
+      'blanc': [0.95, 0.95, 0.95, 1.0],
+      'orange': [0.9, 0.4, 0.0, 1.0]
     };
 
-    function processAIPrompt() {
-      const prompt = document.getElementById('ai-prompt').value.toLowerCase();
+    // 4. Traitement des Commandes IA (Texte + Voix)
+    function processAIPrompt(textFromVoice = null) {
+      const prompt = (textFromVoice || promptInput.value).toLowerCase();
       if (!prompt.trim()) return;
 
+      status.innerText = "⚡ IA en cours de traitement...";
+
+      // Recherche d'objet
+      let modelFound = false;
       for (const [keyword, url] of Object.entries(modelCatalog)) {
         if (prompt.includes(keyword)) {
           viewer.src = url;
+          modelFound = true;
           break;
         }
       }
 
+      // Recherche de couleur
       let targetColor = null;
+      let colorNameFound = "";
       for (const [colorName, rgba] of Object.entries(colorMap)) {
         if (prompt.includes(colorName)) {
           targetColor = rgba;
+          colorNameFound = colorName;
           break;
         }
       }
 
+      // Appliquer la couleur et faire parler l'IA
       setTimeout(() => {
         if (targetColor && viewer.model && viewer.model.materials) {
           for (const mat of viewer.model.materials) {
             mat.pbrMetallicRoughness.setBaseColorFactor(targetColor);
           }
         }
-      }, 500);
+        
+        const responseMsg = "Modèle généré avec succès.";
+        status.innerText = "✅ " + responseMsg;
+        speak(responseMsg);
+      }, 600);
     }
+
+    // 5. Synthèse Vocale (L'IA vous répond)
+    function speak(text) {
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'fr-FR';
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    // 6. Reconnaissance Vocale (Micro)
+    function toggleVoiceRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      
+      if (!SpeechRecognition) {
+        alert("La reconnaissance vocale n'est pas supportée par votre navigateur. Utilisez Chrome.");
+        return;
+      }
+
+      if (isListening) {
+        recognition.stop();
+        return;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.lang = 'fr-FR';
+      recognition.continuous = false;
+
+      recognition.onstart = () => {
+        isListening = true;
+        micBtn.classList.add('listening');
+        status.innerText = "🎙️ Écoute en cours... Parlez !";
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        promptInput.value = transcript;
+        processAIPrompt(transcript);
+      };
+
+      recognition.onerror = () => {
+        status.innerText = "⚠️ Erreur micro. Réessayez.";
+      };
+
+      recognition.onend = () => {
+        isListening = false;
+        micBtn.classList.remove('listening');
+      };
+
+      recognition.start();
+    }
+
+    // Lancement automatique de la caméra au chargement
+    window.onload = initCamera;
   </script>
 </body>
 </html>
